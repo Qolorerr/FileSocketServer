@@ -1,4 +1,4 @@
-src/qhelper/db
+src/qhelper/db/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
