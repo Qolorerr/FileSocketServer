@@ -1,8 +1,8 @@
 import asyncio
 from dataclasses import dataclass
 from functools import wraps
-from quart import Quart, jsonify, request, make_response
-from quart_schema import QuartSchema, validate_request
+from quart import Quart, jsonify, request, make_response, Response
+from quart_schema import QuartSchema, validate_request, RequestSchemaValidationError
 
 from db_session import create_session, global_init
 from encryption import encryption, decryption, init_encryption
@@ -17,10 +17,17 @@ QuartSchema(app)
 
 init_encryption()
 
+global_init("db/user_data.sqlite")
 
-@app.errorhandler(500)
-def error_handling_500(error):
-    return {"Error": str(error)}, 500
+# @app.errorhandler(500)
+# def error_handling_500(error):
+#     return {"Error": str(error)}, 500
+
+
+@app.errorhandler(RequestSchemaValidationError)
+async def handle_request_validation_error(error):
+    return {"errors": error.validation_error.json()}, 400
+
 
 
 @dataclass
@@ -36,21 +43,21 @@ async def signup(data: SignUpIn):
     session = create_session()
     user = session.query(User).filter(User.login == data.login).first()
     if user is not None:
-        return make_response(jsonify({"message": "Login already exists"}), 401)
+        return await make_response(jsonify({"message": "Login already exists"}), 401)
     user = session.query(User).filter(User.email == data.email).first()
     if user is not None:
-        return make_response(jsonify({"message": "Email already exists"}), 401)
+        return await make_response(jsonify({"message": "Email already exists"}), 401)
     user = User()
     user.login = data.login
     user.email = data.email
     user.hashed_password = user.hash(data.password)
     session.add(user)
     session.commit()
-    return make_response(201)
+    return Response("", status=201)
 
 
 @dataclass
-class GetTokenIn:
+class PostToken:
     login_or_email: str
     password: str
     name: str
@@ -58,29 +65,29 @@ class GetTokenIn:
 
 
 @app.post('/get_token')
-@validate_request(GetTokenIn)
-async def get_token(data: GetTokenIn):
+@validate_request(PostToken)
+async def get_token(data: PostToken):
     session = create_session()
-    user = session.query(User).filter(User.login == data.login_or_email or User.email == data.login_or_email).first()
+    user = session.query(User).filter((User.login == data.login_or_email) | (User.email == data.login_or_email)).first()
     if user is None:
-        return make_response(jsonify({"message": "Couldn't find such pair of login-password"}), 401)
-    if user.check_password(data.password):
-        return make_response(jsonify({"message": "Couldn't find such pair of login-password"}), 401)
+        return await make_response(jsonify({"message": "Couldn't find such pair of login-password"}), 401)
+    if not user.check_password(data.password):
+        return await make_response(jsonify({"message": "Couldn't find such pair of login-password"}), 401)
     if data.name == "":
-        return make_response(jsonify({"message": "Device name can't be empty"}), 400)
+        return await make_response(jsonify({"message": "Device name can't be empty"}), 400)
     if data.type not in ["pc", "smartphone"]:
-        return make_response(jsonify({"message": "Device type can be only 'pc' or 'smartphone'"}), 400)
+        return await make_response(jsonify({"message": "Device type can be only 'pc' or 'smartphone'"}), 400)
     device = Device()
     device.name = data.name
     device.type = data.type
     device.user_id = user.id
     session.add(device)
     session.commit()
-    return make_response(jsonify({"token": create_token(device)}), 201)
+    return Response("", status=201, headers={"token": _create_token(device)})
 
 
-def create_token(device: Device) -> str:
-    return str(encryption(f"{device.id} {device.user_id}"))
+def _create_token(device: Device) -> str:
+    return encryption(f"{device.id} {device.user_id}")
 
 
 def token_required(func):
@@ -103,6 +110,19 @@ def token_required(func):
     return decorator
 
 
+@dataclass
+class PostActiveMode:
+    is_active: bool
+
+
+@app.post('/change_active_mode')
+@token_required
+@validate_request(PostToken)
+async def change_active_mode(data: PostActiveMode, device: Device):
+    session = create_session()
+    device.is_active = data.is_active
+    session.commit()
+
+
 if __name__ == '__main__':
-    global_init("db/user_data.sqlite")
     app.run(port=5000, host='127.0.0.1')
