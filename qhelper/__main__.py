@@ -1,6 +1,7 @@
 import asyncio
 from dataclasses import dataclass
 from functools import wraps
+from typing import Optional
 from quart import Quart, jsonify, request, make_response, Response
 from quart_schema import QuartSchema, validate_request, RequestSchemaValidationError
 
@@ -26,8 +27,7 @@ global_init("db/user_data.sqlite")
 
 @app.errorhandler(RequestSchemaValidationError)
 async def handle_request_validation_error(error):
-    return {"errors": error.validation_error.json()}, 400
-
+    return Response("", status=400, headers={"message": error.validation_error.json()})
 
 
 @dataclass
@@ -64,7 +64,7 @@ class PostToken:
     type: str
 
 
-@app.post('/get_token')
+@app.get('/get_token')
 @validate_request(PostToken)
 async def get_token(data: PostToken):
     session = create_session()
@@ -92,36 +92,48 @@ def _create_token(device: Device) -> str:
 
 def token_required(func):
     @wraps(func)
-    def decorator(*args, **kwargs):
-        token = None
-        if 'token' in request.headers:
-            token = request.headers['token']
-        if not token:
-            return make_response(jsonify({"message": "Token is missing"}), 401)
+    async def wrapper(*args, **kwargs):
+        data = await request.get_json()
+        if 'token' in data:
+            token = data['token']
+        else:
+            return await make_response(jsonify({"message": "Token is missing"}), 401)
         try:
             device_id, user_id = map(int, decryption(token).split())
         except:
-            return make_response(jsonify({"message": "Invalid token"}), 401)
+            return await make_response(jsonify({"message": "Token is missing"}), 401)
         session = create_session()
         device = session.query(Device).filter(Device.id == device_id and Device.user_id == user_id).first()
         if device is None:
-            return make_response(jsonify({"message": "Invalid token"}), 401)
-        return func(device, *args, **kwargs)
-    return decorator
+            return Response("", status=401, headers={"message": "Invalid token"})
+        return await func(device, *args, **kwargs)
+    return wrapper
 
 
 @dataclass
 class PostActiveMode:
     is_active: bool
+    token: Optional[str]
 
 
 @app.post('/change_active_mode')
 @token_required
-@validate_request(PostToken)
-async def change_active_mode(data: PostActiveMode, device: Device):
+@validate_request(PostActiveMode)
+async def change_active_mode(device: Device, data: PostActiveMode):
     session = create_session()
-    device.is_active = data.is_active
+    session.query(Device).filter(Device.id == device.id).update({"is_active": data.is_active})
     session.commit()
+    return Response("", status=200)
+
+
+@app.get('/show_available_pc')
+@token_required
+async def show_available_pc(device: Device):
+    session = create_session()
+    devices = session.query(Device).filter(Device.user_id == device.user_id,
+                                           Device.type == "pc",
+                                           Device.is_active == 1).all()
+    return await make_response(jsonify({"devices": [{"id": str(pc.id), "name": pc.name} for pc in devices]}), 200)
 
 
 if __name__ == '__main__':
