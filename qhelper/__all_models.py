@@ -1,2 +1,2 @@
-from users import User
-from devices import Device
+from qhelper.users import User
+from qhelper.devices import Device
