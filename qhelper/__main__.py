@@ -9,13 +9,12 @@ from typing import Optional
 from quart import Quart, jsonify, request, make_response, Response, websocket
 from quart_schema import QuartSchema, validate_request, RequestSchemaValidationError
 
+from qhelper.config import LOGGER_CONFIG, DB_PATH
 from qhelper.db_session import create_session, global_init
 from qhelper.encryption import encryption, decryption, init_encryption
 from qhelper.devices import Device
 from qhelper.broker import Broker
 from qhelper.users import User
-
-ERROR_LOG_FILENAME = "error.log"
 
 app = Quart(__name__)
 app.config['SECRET_KEY'] = 'af1f2ed264b7a6b18b84971091cbaceea33697bf3b80ad5cd495898c8ced0a2d09b1e8012a0' \
@@ -23,61 +22,14 @@ app.config['SECRET_KEY'] = 'af1f2ed264b7a6b18b84971091cbaceea33697bf3b80ad5cd495
 
 QuartSchema(app)
 
-dictConfig({
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "default": {
-            "format": "%(asctime)s:%(name)s:%(process)d:%(lineno)d %(levelname)s %(module)s.%(funcName)s: %(message)s",
-            "datefmt": "%Y-%m-%d %H:%M:%S",
-        },
-        "simple": {
-            "format": "[%(levelname)s] in %(module)s.%(funcName)s: %(message)s",
-        },
-    },
-    "handlers": {
-        "logfile": {
-            "formatter": "default",
-            "level": "ERROR",
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": ERROR_LOG_FILENAME,
-            "backupCount": 2,
-        },
-        "verbose_output": {
-            "formatter": "simple",
-            "level": "DEBUG",
-            "class": "logging.StreamHandler",
-            "stream": "ext://sys.stdout",
-        },
-    },
-    "loggers": {
-        "app": {
-            "level": "DEBUG",
-            "handlers": [
-                "verbose_output",
-            ],
-        },
-        "testing": {
-            "level": "INFO",
-            "handlers": [
-                "verbose_output",
-            ],
-        },
-    },
-    "root": {
-        "level": "INFO",
-        "handlers": [
-            "logfile"
-        ]
-    },
-})
+dictConfig(LOGGER_CONFIG)
 logger = logging.getLogger("app")
 
-broker = Broker(logger)
+broker = Broker()
 
 init_encryption()
 
-global_init("db/user_data.sqlite")
+global_init(DB_PATH)
 
 # @app.errorhandler(500)
 # def error_handling_500(error):
@@ -222,14 +174,14 @@ async def _format_message(device_from: Device, message: str) -> Optional[str]:
     return json.dumps(data)
 
 
-async def _receive(device_from: Device, device_to_id: str) -> None:
+async def _receive(device_from: Device, device_to_id: str, is_managed: bool) -> None:
     while True:
         message = await websocket.receive()
         logger.debug(f"Received message, device_from: {device_from.type}{device_from.id}, device_to: {device_to_id}")
         message = await _format_message(device_from, message)
         if message is None:
             continue
-        await broker.publish(device_from, device_to_id, message)
+        await broker.publish(device_from, device_to_id, message, is_managed)
 
 
 def ws_validate_request(func):
@@ -254,18 +206,18 @@ def ws_validate_request(func):
         await websocket.accept()
         if is_managed:
             device_id = str(device.id)
-        return await func(device, device_id, *args, **kwargs)
+        return await func(device, device_id, is_managed, *args, **kwargs)
     return wrapper
 
 
 @app.websocket('/connect')
 @ws_validate_request
-async def connect(device: Device, device_id: str):
+async def connect(device: Device, device_id: str, is_managed: bool):
     logger.info(f"Connected, device: {device.type}{device.id}")
     try:
-        task = asyncio.ensure_future(_receive(device, device_id))
+        task = asyncio.ensure_future(_receive(device, device_id, is_managed))
         logger.debug(f"Created receiver, device: {device.type}{device.id}")
-        async for message in broker.subscribe(device, device_id):
+        async for message in broker.subscribe(device, device_id, is_managed):
             logger.debug(f"Sending message, device: {device.type}{device.id}")
             await websocket.send(message)
     finally:
@@ -275,4 +227,7 @@ async def connect(device: Device, device_id: str):
 
 
 if __name__ == '__main__':
-    app.run(port=5000, host='127.0.0.1')
+    try:
+        app.run(port=5000, host='127.0.0.1')
+    except KeyboardInterrupt:
+        logger.warning(f"Disabling server")
