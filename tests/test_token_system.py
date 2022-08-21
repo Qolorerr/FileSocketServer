@@ -1,11 +1,12 @@
 import asyncio
+import logging
 import time
-import requests
+# import requests
 import pytest
 from quart.testing.connections import TestWebsocketConnection, WebsocketResponseError
 
-from qhelper import app, logger
-from qhelper.encryption import decryption, init_encryption
+from qhelper import app
+from qhelper.encryption import decryption
 
 LOGIN = "Tester"
 EMAIL = "tester@test.com"
@@ -14,6 +15,8 @@ DEVICE_NAME = "TesterPC"
 DEVICE_TYPE = "pc"
 DECODED_TOKEN = "1 1"
 TOKEN = "gAAAAABi88YV3akcyfpk33sy8RyNR87dnnZ1-8XFjKQ260eTQZ9KnRItVPJvsIKc8tzTKtb25JHc7G1INSEMSzTCS6zPZouHHg=="
+
+logger = logging.getLogger('testing')
 
 
 @pytest.fixture(autouse=True)
@@ -84,7 +87,6 @@ async def test_show_available_pc(path: str, json: dict, status: int) -> None:
 
 
 async def _receive(test_websocket: TestWebsocketConnection) -> str:
-    logger.debug("test_token_system._receive\tReceiving message")
     return await test_websocket.receive()
 
 
@@ -92,6 +94,7 @@ async def _receive(test_websocket: TestWebsocketConnection) -> str:
     "path, json, message",
     [
         ("/connect", {"token": TOKEN, "device_id": "1"}, "message"),
+        ("/connect", {"token": TOKEN, "is_managed": True}, "message"),
     ],
 )
 async def test_connect(path: str, json: dict, message: str) -> None:
@@ -99,12 +102,12 @@ async def test_connect(path: str, json: dict, message: str) -> None:
     try:
         async with test_client.websocket(path, headers=json) as test_websocket:
             task = asyncio.ensure_future(_receive(test_websocket))
-            logger.debug("test_token_system.test_websocket\tCreated task")
+            logger.debug("Created receiver")
             await test_websocket.send(message)
-            logger.debug("test_token_system.test_websocket\tSent message: %r", message)
+            logger.debug("Sent message")
             time.sleep(1)
             result = await task
-            logger.debug("test_token_system.test_websocket\tGot message: %r", result)
+            logger.debug("Got message")
             assert result == message
     except WebsocketResponseError as error:
         logger.exception(f"Code: {error.response.status_code}, args: {error.args}")

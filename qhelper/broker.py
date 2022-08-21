@@ -13,6 +13,9 @@ class Broker:
                 device_id: connection
             }
         }
+
+        Every managed device has its own connection.
+        Managing devices publish messages to connections of managed devices
         """
         self.logger = logger
         self.connections = dict()
@@ -23,22 +26,24 @@ class Broker:
             return
         if device_to_id not in self.connections[curr_user_id]:
             return
-        self.logger.debug("broker.publish\tGot valid publish request. Message: %r", message)
         await self.connections[curr_user_id][device_to_id].put(message)
-        self.logger.debug("broker.publish\tAdded message to connections dict")
+        self.logger.debug(f"Successfully published message, device_from: {device_from.type}{device_from.id}")
 
-    async def subscribe(self, device: Device) -> AsyncGenerator[str, None]:
+    async def subscribe(self, device_from: Device, device_to_id: str) -> AsyncGenerator[str, None]:
         connection = asyncio.Queue()
-        curr_user_id = str(device.user_id)
-        if curr_user_id not in self.connections:
-            self.connections[curr_user_id] = dict()
-        curr_device_id = str(device.id)
-        self.connections[curr_user_id][curr_device_id] = connection
-        self.logger.debug("broker.subscribe\tGot valid subscription request")
+        user_id = str(device_from.user_id)
+        if user_id not in self.connections:
+            self.connections[user_id] = dict()
+        self.connections[user_id][device_to_id] = connection
+        self.logger.debug(f"Successfully subscribed, "
+                          f"device: {device_from.type}{device_from.id}, "
+                          f"channel: {device_from.user_id}|{device_to_id}")
         try:
             while True:
                 yield await connection.get()
         finally:
-            self.logger.debug("broker.subscribe\tEnding subscription")
-            self.connections[curr_user_id].pop(curr_device_id, None)
-            self.logger.debug("broker.subscribe\tSubscription deleted")
+            if str(device_from.id) == device_to_id:
+                self.connections[user_id].pop(device_to_id, None)
+            self.logger.debug(f"Unsubscribed, "
+                              f"device: {device_from.type}{device_from.id}, "
+                              f"channel: {device_from.user_id}|{device_to_id}")
