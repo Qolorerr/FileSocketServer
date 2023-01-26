@@ -1,6 +1,5 @@
 import asyncio
 import logging
-from logging import Logger
 from typing import AsyncGenerator
 
 from qhelper.devices import Device

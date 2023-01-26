@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import time
 # import requests
@@ -51,8 +52,9 @@ async def test_get_token(path: str, json: dict, status: int) -> None:
     response = await test_client.get(path, json=json)
     if 'message' in response.headers:
         print(f"Message: {response.headers['message']}\n")
+    json = await response.get_json()
     assert response.status_code == status
-    assert decryption(response.headers['token']) == DECODED_TOKEN
+    assert decryption(json['token']) == DECODED_TOKEN
 
 
 @pytest.mark.parametrize(
@@ -90,24 +92,25 @@ async def _receive(test_websocket: TestWebsocketConnection) -> str:
     return await test_websocket.receive()
 
 
+# TODO: Fix this test
 @pytest.mark.parametrize(
-    "path, json, message",
+    "path, header, message",
     [
-        ("/connect", {"token": TOKEN, "device_id": "1"}, "message"),
-        ("/connect", {"token": TOKEN, "is_managed": True}, "message"),
+        ("/connect", {"token": TOKEN, "device_id": "1"}, {"message": "test message"}),
+        ("/connect", {"token": TOKEN, "is_managed": True}, {"message": "test message"}),
     ],
 )
-async def test_connect(path: str, json: dict, message: str) -> None:
+async def test_connect(path: str, header: dict, message: dict) -> None:
     test_client = app.test_client()
     try:
-        async with test_client.websocket(path, headers=json) as test_websocket:
+        async with test_client.websocket(path, headers=header) as test_websocket:
             task = asyncio.ensure_future(_receive(test_websocket))
             logger.debug("Created receiver")
-            await test_websocket.send(message)
+            await test_websocket.send(json.dumps(message))
             logger.debug("Sent message")
             time.sleep(1)
             result = await task
             logger.debug("Got message")
-            assert result == message
+            assert json.loads(result) == message
     except WebsocketResponseError as error:
         logger.exception(f"Code: {error.response.status_code}, args: {error.args}")

@@ -90,6 +90,11 @@ async def get_token(data: PostToken):
     if data.type not in ["pc", "smartphone"]:
         return await make_response(jsonify({"message": "Device type can be only 'pc' or 'smartphone'"}), 400)
     logger.debug(f"Success login, user_id: {user.id}")
+    device = session.query(Device).filter((Device.user_id == user.id) &
+                                          (Device.type == data.type) &
+                                          (Device.name == data.name)).first()
+    if device is not None:
+        return await make_response(jsonify({"token": _create_token(device)}), 201)
     device = Device()
     device.name = data.name
     device.type = data.type
