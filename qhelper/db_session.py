@@ -13,9 +13,9 @@ def global_init(db_file):
     if __factory:
         return
     if not db_file or not db_file.strip():
-        raise Exception("Необходимо указать файл базы данных.")
+        raise Exception("You need to set db file name")
     conn_str = f'sqlite:///{db_file.strip()}?check_same_thread=False'
-    print(f"Подключение к базе данных по адресу {conn_str}\n")
+    print(f"Connection to base {db_file.strip()}\n")
     engine = sa.create_engine(conn_str, echo=False)
     __factory = orm.sessionmaker(bind=engine)
     import __all_models

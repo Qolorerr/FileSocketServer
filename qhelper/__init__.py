@@ -2,7 +2,8 @@ from .__main__ import app
 from .__main__ import logger
 from .__main__ import SignUpIn
 from .__main__ import PostToken
-from .__main__ import PostActiveMode
+from .__main__ import SetNgrokIp
+from .__main__ import GetNgrokIp
 from .users import User
 from .devices import Device
 from .config import DB_PATH
