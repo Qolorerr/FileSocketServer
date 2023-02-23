@@ -2,8 +2,8 @@ import logging
 import time
 import pytest
 
-from qhelper import app
-from qhelper.encryption import decryption
+from filesocket_server import app
+from filesocket_server.encryption import decryption
 
 LOGIN = "Tester"
 EMAIL = "tester@test.com"

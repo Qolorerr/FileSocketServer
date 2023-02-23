@@ -6,11 +6,11 @@ from typing import Optional
 from quart import Quart, jsonify, request, make_response, Response
 from quart_schema import QuartSchema, validate_request, RequestSchemaValidationError
 
-from qhelper.config import LOGGER_CONFIG, DB_PATH
-from qhelper.db_session import create_session, global_init
-from qhelper.encryption import encryption, decryption, init_encryption
-from qhelper.devices import Device
-from qhelper.users import User
+from filesocket_server.config import LOGGER_CONFIG, DB_PATH
+from filesocket_server.db_session import create_session, global_init
+from filesocket_server.encryption import encryption, decryption, init_encryption
+from filesocket_server.devices import Device
+from filesocket_server.users import User
 
 app = Quart(__name__)
 app.config['SECRET_KEY'] = 'af1f2ed264b7a6b18b84971091cbaceea33697bf3b80ad5cd495898c8ced0a2d09b1e8012a0' \
