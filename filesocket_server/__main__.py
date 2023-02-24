@@ -167,7 +167,17 @@ async def get_ngrok_ip(device: Device, data: GetNgrokIp):
 @app.get('/show_available_pc')
 @token_required
 async def show_available_pc(device: Device):
-    return Response("Show_available_pc not working anymore. Update client", status=503)
+    return Response("Show_available_pc not working anymore. Check show_all_pc", status=503)
+
+
+@app.get('/show_all_pc')
+@token_required
+async def show_all_pc(device: Device):
+    session = create_session()
+    devices = session.query(Device).filter(Device.user_id == device.user_id,
+                                           Device.type == "pc").all()
+    logger.debug(f"Shown all PCs, user_id: {device.user_id}")
+    return await make_response(jsonify({"devices": [{"id": str(pc.id), "name": pc.name} for pc in devices]}), 200)
 
 
 @app.websocket('/connect')
