@@ -1,9 +1,10 @@
+from pathlib import Path
 from cryptography.fernet import Fernet
 
 
 def init_encryption() -> None:
     global cipher
-    cipher = Fernet(bytes(open("db/key.txt", 'r').read().encode("UTF-8")))
+    cipher = Fernet(bytes(open(Path(__file__).parent.resolve() / "db/key.txt", 'r').read().encode("UTF-8")))
 
 
 def encryption(text) -> str:

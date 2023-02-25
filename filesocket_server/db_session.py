@@ -1,3 +1,4 @@
+from pathlib import Path
 import sqlalchemy as sa
 import sqlalchemy.orm as orm
 from sqlalchemy.orm import Session
@@ -8,17 +9,17 @@ SqlAlchemyBase = dec.declarative_base()
 __factory = None
 
 
-def global_init(db_file):
+def global_init(db_file: Path):
     global __factory
     if __factory:
         return
-    if not db_file or not db_file.strip():
+    if not db_file.exists():
         raise Exception("You need to set db file name")
-    conn_str = f'sqlite:///{db_file.strip()}?check_same_thread=False'
-    print(f"Connection to base {db_file.strip()}\n")
+    conn_str = f'sqlite:///{db_file}?check_same_thread=False'
+    print(f"Connection to base {db_file}\n")
     engine = sa.create_engine(conn_str, echo=False)
     __factory = orm.sessionmaker(bind=engine)
-    import __all_models
+    import filesocket_server.__all_models
     SqlAlchemyBase.metadata.create_all(engine)
 
 

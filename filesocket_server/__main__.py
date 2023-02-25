@@ -42,7 +42,7 @@ class SignUpIn:
     password: str
 
 
-@app.post('/signup')
+@app.post('/filesocket/signup')
 @validate_request(SignUpIn)
 async def signup(data: SignUpIn):
     session = create_session()
@@ -70,7 +70,7 @@ class PostToken:
     type: str
 
 
-@app.get('/get_token')
+@app.get('/filesocket/get_token')
 @validate_request(PostToken)
 async def get_token(data: PostToken):
     session = create_session()
@@ -133,7 +133,7 @@ class SetNgrokIp:
     ngrok_ip: Optional[str] = ""
 
 
-@app.post('/set_ngrok_ip')
+@app.post('/filesocket/set_ngrok_ip')
 @token_required
 @validate_request(SetNgrokIp)
 async def set_ngrok_ip(device: Device, data: SetNgrokIp):
@@ -150,7 +150,7 @@ class GetNgrokIp:
     token: str
 
 
-@app.get('/get_ngrok_ip')
+@app.get('/filesocket/get_ngrok_ip')
 @token_required
 @validate_request(GetNgrokIp)
 async def get_ngrok_ip(device: Device, data: GetNgrokIp):
@@ -164,13 +164,13 @@ async def get_ngrok_ip(device: Device, data: GetNgrokIp):
     return await make_response(jsonify({"ngrok_ip": device.ngrok_ip}), 200)
 
 
-@app.get('/show_available_pc')
+@app.get('/filesocket/show_available_pc')
 @token_required
 async def show_available_pc(device: Device):
     return Response("Show_available_pc not working anymore. Check show_all_pc", status=503)
 
 
-@app.get('/show_all_pc')
+@app.get('/filesocket/show_all_pc')
 @token_required
 async def show_all_pc(device: Device):
     session = create_session()
@@ -180,7 +180,7 @@ async def show_all_pc(device: Device):
     return await make_response(jsonify({"devices": [{"id": str(pc.id), "name": pc.name} for pc in devices]}), 200)
 
 
-@app.websocket('/connect')
+@app.websocket('/filesocket/connect')
 async def connect(device: Device, device_id: str, is_managed: bool):
     return Response("Websocket not working anymore. Update client", status=503)
 

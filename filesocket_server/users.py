@@ -1,7 +1,7 @@
 import hashlib
 import sqlalchemy
 from sqlalchemy_serializer import SerializerMixin
-from db_session import SqlAlchemyBase
+from filesocket_server.db_session import SqlAlchemyBase
 
 
 class User(SqlAlchemyBase, SerializerMixin):

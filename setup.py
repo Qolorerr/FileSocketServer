@@ -18,6 +18,8 @@ setup(
         'quart-schema>=0.12.0',
         'sqlalchemy>=1.4.39',
         'sqlalchemy-serializer>=1.4.1',
-        'cryptography>=39.0.0'
+        'cryptography>=39.0.0',
+        'pytest>=7.1.2',
+        'pytest-asyncio>=0.19.0'
     ],
 )

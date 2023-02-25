@@ -1,4 +1,6 @@
-DB_PATH = "db/user_data.sqlite"
+from pathlib import Path
+
+DB_PATH = Path(__file__).parent.resolve() / "db/user_data.sqlite"
 
 ERROR_LOG_FILENAME = "error.log"
 
