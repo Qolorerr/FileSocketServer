@@ -13,7 +13,7 @@ def global_init(db_file: Path):
     global __factory
     if __factory:
         return
-    if not db_file.exists():
+    if not db_file.parent.exists():
         raise Exception("You need to set db file name")
     conn_str = f'sqlite:///{db_file}?check_same_thread=False'
     print(f"Connection to base {db_file}\n")
